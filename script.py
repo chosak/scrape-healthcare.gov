@@ -26,7 +26,7 @@ def run():
     print '\t'.join(keys)
 
     for plan in plans:
-        print '\t'.join([str(plan[k]) for k in keys])
+        print '\t'.join([unicode(plan[k]).encode('utf-8') for k in keys])
 
 
 if __name__ == '__main__':

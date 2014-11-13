@@ -4,6 +4,7 @@ import urllib
 import urlparse
 
 from bs4 import BeautifulSoup
+from collections import OrderedDict
 
 
 
@@ -24,20 +25,21 @@ class PlanScraper(object):
         plan_files = soup.find_all('ul', class_='plan-files')[0]
         plan_link = plan_files.findAll('a')[0]['href']
 
-        plan = {
-            'url': url,
-            'company': company,
-            'name': name,
-            'link': plan_link,
-        }
+        plan = [
+            ('url', url),
+            ('company', company),
+            ('name', name),
+            ('link', plan_link),
+        ]
 
         details = soup.find_all('ol', class_='results')[0]
         rows = details.find_all('div', class_='row')
 
-        plan.update(self.parse_overview(rows[1]))
-        plan.update(self.parse_premiums(rows[3]))
+        plan.extend(self.parse_overview(rows[1]))
+        plan.extend(self.parse_premiums(rows[3]))
+        plan.extend(self.parse_details(rows[4]))
 
-        return plan 
+        return OrderedDict(plan)
 
 
     def parse_overview(self, row):
@@ -49,12 +51,12 @@ class PlanScraper(object):
         network = lis[1].text if 3 == len(lis) else None
         plan_id = lis[-1].text.split(':')[-1].strip()
 
-        return {
-            'metal': metal,
-            'plan_type': plan_type,
-            'network': network,
-            'plan_id': plan_id,
-        }
+        return [
+            ('metal', metal),
+            ('plan_type', plan_type),
+            ('network', network),
+            ('plan_id', plan_id),
+        ]
 
 
     def parse_premiums(self, row):
@@ -64,11 +66,33 @@ class PlanScraper(object):
         deductible = int(re.split(' |\n', ps[1].text)[1].strip('$')) 
         oop_max = int(re.split(' |\n', ps[2].text)[1].strip('$')) 
 
-        return {
-            'premium': premium,
-            'deductible': deductible,
-            'oop_max': oop_max,
-        }
+        return [
+            ('premium', premium),
+            ('deductible', deductible),
+            ('oop_max', oop_max),
+        ]
+
+
+    def parse_details(self, row):
+        details = []
+
+        for dd in row.find_all('dd'):
+            dd_text = dd.text.strip(' \n\t')
+            value = dd.find_all('span')[-1].text.strip(' \n\t')
+            key = dd_text[:-len(value)]
+
+            details.append((
+                key.strip(' \n\t'),
+                value
+            ))
+            #print '**{}**'.format(span.text)
+            #print '**{}**'.format(span.parent.text)
+            #costs.append((
+            #    span.parent.text[:-len(span.text)].strip(' \n\t'),
+            #    span.text.strip(' \n\t')
+            #))
+
+        return details
 
 
     def get_plan_urls(self, zipcode, income, people):
